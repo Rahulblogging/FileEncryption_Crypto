@@ -1,20 +1,10 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file
 from cryptography.fernet import Fernet
+import io
+import zipfile
 import os
 
 app = Flask(__name__)
-
-# folders
-UPLOAD_FOLDER = "uploads"
-ENCRYPTED_FOLDER = "encrypted"
-DECRYPTED_FOLDER = "decrypted"
-KEY_FOLDER = "keys"
-
-# create folders
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-os.makedirs(ENCRYPTED_FOLDER, exist_ok=True)
-os.makedirs(DECRYPTED_FOLDER, exist_ok=True)
-os.makedirs(KEY_FOLDER, exist_ok=True)
 
 
 # HOME PAGE
@@ -32,54 +22,42 @@ def encrypt_file():
     if uploaded_file.filename == '':
         return "No File Selected!"
 
-    # save uploaded file
-    filepath = os.path.join(
-        UPLOAD_FOLDER,
-        uploaded_file.filename
-    )
+    # read original file
+    original = uploaded_file.read()
 
-    uploaded_file.save(filepath)
-
-    # generate UNIQUE key for this file
+    # generate unique key
     key = Fernet.generate_key()
 
     # create fernet object
     fernet = Fernet(key)
 
-    # key filename
-    key_filename = uploaded_file.filename + ".key"
-
-    # save key file
-    key_path = os.path.join(
-        KEY_FOLDER,
-        key_filename
-    )
-
-    with open(key_path, 'wb') as key_file:
-        key_file.write(key)
-
-    # read original file
-    with open(filepath, 'rb') as file:
-        original = file.read()
-
     # encrypt file
     encrypted = fernet.encrypt(original)
 
-    # encrypted filename
+    # filenames
     encrypted_filename = uploaded_file.filename + ".enc"
+    key_filename = uploaded_file.filename + ".key"
 
-    encrypted_path = os.path.join(
-        ENCRYPTED_FOLDER,
-        encrypted_filename
-    )
+    # create ZIP in memory
+    memory_file = io.BytesIO()
 
-    # save encrypted file
-    with open(encrypted_path, 'wb') as enc_file:
-        enc_file.write(encrypted)
+    with zipfile.ZipFile(
+        memory_file,
+        'w',
+        zipfile.ZIP_DEFLATED
+    ) as zf:
 
-    return render_template(
-        "success.html",
-        message="File Encrypted Successfully!"
+        zf.writestr(encrypted_filename, encrypted)
+        zf.writestr(key_filename, key)
+
+    memory_file.seek(0)
+
+    # return zip download
+    return send_file(
+        memory_file,
+        as_attachment=True,
+        download_name='encrypted_files.zip',
+        mimetype='application/zip'
     )
 
 
@@ -87,76 +65,62 @@ def encrypt_file():
 @app.route('/decrypt', methods=['POST'])
 def decrypt_file():
 
-    encrypted_file = request.files['file']
+    uploaded_zip = request.files['file']
 
-    if encrypted_file.filename == '':
-        return "No File Selected!"
-
-    # save encrypted uploaded file
-    encrypted_path = os.path.join(
-        UPLOAD_FOLDER,
-        encrypted_file.filename
-    )
-
-    encrypted_file.save(encrypted_path)
-
-    # corresponding key filename
-    key_filename = encrypted_file.filename.replace(".enc", ".key")
-
-    key_path = os.path.join(
-        KEY_FOLDER,
-        key_filename
-    )
-
-    # check if key exists
-    if not os.path.exists(key_path):
-        return render_template(
-            "success.html",
-            message="Key File Not Found!"
-        )
-
-    # read key
-    with open(key_path, 'rb') as key_file:
-        key = key_file.read()
-
-    # create fernet object
-    fernet = Fernet(key)
-
-    # read encrypted file
-    with open(encrypted_path, 'rb') as enc_file:
-        encrypted = enc_file.read()
+    if uploaded_zip.filename == '':
+        return "No ZIP File Selected!"
 
     try:
 
+        # read uploaded zip in memory
+        zip_data = io.BytesIO(uploaded_zip.read())
+
+        with zipfile.ZipFile(zip_data, 'r') as zf:
+
+            encrypted_filename = None
+            key_filename = None
+
+            # find files
+            for file in zf.namelist():
+
+                if file.endswith('.enc'):
+                    encrypted_filename = file
+
+                elif file.endswith('.key'):
+                    key_filename = file
+
+            if not encrypted_filename or not key_filename:
+                return "ZIP must contain .enc and .key files!"
+
+            # read encrypted file
+            encrypted_data = zf.read(encrypted_filename)
+
+            # read key file
+            key = zf.read(key_filename)
+
+        # create fernet object
+        fernet = Fernet(key)
+
         # decrypt
-        decrypted = fernet.decrypt(encrypted)
+        decrypted = fernet.decrypt(encrypted_data)
 
         # restore original filename
-        original_filename = encrypted_file.filename.replace(".enc", "")
+        original_filename = encrypted_filename.replace(".enc", "")
 
-        decrypted_path = os.path.join(
-            DECRYPTED_FOLDER,
-            original_filename
-        )
-
-        # save decrypted file
-        with open(decrypted_path, 'wb') as dec_file:
-            dec_file.write(decrypted)
-
-        return render_template(
-            "success.html",
-            message="File Decrypted Successfully!"
+        # return decrypted file
+        return send_file(
+            io.BytesIO(decrypted),
+            as_attachment=True,
+            download_name=original_filename
         )
 
     except:
-        return render_template(
-            "success.html",
-            message="Invalid File or Wrong Key!"
-        )
+        return "Invalid ZIP File!"
 
 
 # RUN APP
 if __name__ == '__main__':
+
     port = int(os.environ.get("PORT", 5000))
 
     app.run(

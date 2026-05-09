@@ -1,43 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
     <title>Cryptography</title>
 
-     <link rel="stylesheet"
+    <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
 
 </head>
 
 <body>
+
     <div class="container">
-        
-    <h2>Encrypt File</h2>
 
-    <form action="/encrypt" method="POST" enctype="multipart/form-data">
+        <h2>Encrypt File</h2>
 
-        <div>
-             <input type="file" name="file" required> <br><br>
+        <form action="/encrypt"
+              method="POST"
+              enctype="multipart/form-data">
 
-        <button type="submit">Encrypt File</button>
-        </div>
+            <div>
 
-    </form>
+                <input type="file"
+                       name="file"
+                       required>
 
-    <hr>
+                <br><br>
 
-    <h2>Decrypt File</h2>
+                <button type="submit">
+                    Encrypt File
+                </button>
 
-    <form action="/decrypt" method="POST" enctype="multipart/form-data">
+            </div>
 
-        <div>
-            <input type="file" name="file" required><br><br>
+        </form>
 
-        <button type="submit">Decrypt File</button>
-        </div>
+        <hr>
 
-    </form>
-</div>
+        <h2>Decrypt File</h2>
+
+        <form action="/decrypt"
+              method="POST"
+              enctype="multipart/form-data">
+
+            <div>
+
+                <input type="file"
+                       name="file"
+                       accept=".zip"
+                       required>
+
+                <br><br>
+
+                <button type="submit">
+                    Decrypt File
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
 </body>
+
 </html>
