@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Success</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div style="text-align: center; margin-top: 100px;">
+
+        <h2>{{ message }}</h2>
+
+        <br>
+
+        <button onclick="window.location.href='/'">
+            Back to Home
+        </button>
+
+    </div>
+
+</body>
+</html>
