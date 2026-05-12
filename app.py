@@ -1,10 +1,21 @@
 from flask import Flask, render_template, request, send_file
 from cryptography.fernet import Fernet
+import base64
+import hashlib
 import io
-import zipfile
 import os
 
 app = Flask(__name__)
+
+
+# GENERATE KEY FROM PASSWORD
+def generate_key(password):
+
+    # convert password into 32-byte key
+    key = hashlib.sha256(password.encode()).digest()
+
+    # convert into Fernet-compatible key
+    return base64.urlsafe_b64encode(key)
 
 
 # HOME PAGE
@@ -18,15 +29,19 @@ def home():
 def encrypt_file():
 
     uploaded_file = request.files['file']
+    password = request.form['password']
 
     if uploaded_file.filename == '':
         return "No File Selected!"
 
+    if password == '':
+        return "Password Required!"
+
     # read original file
     original = uploaded_file.read()
 
-    # generate unique key
-    key = Fernet.generate_key()
+    # generate key from password
+    key = generate_key(password)
 
     # create fernet object
     fernet = Fernet(key)
@@ -34,30 +49,14 @@ def encrypt_file():
     # encrypt file
     encrypted = fernet.encrypt(original)
 
-    # filenames
+    # encrypted filename
     encrypted_filename = uploaded_file.filename + ".enc"
-    key_filename = uploaded_file.filename + ".key"
 
-    # create ZIP in memory
-    memory_file = io.BytesIO()
-
-    with zipfile.ZipFile(
-        memory_file,
-        'w',
-        zipfile.ZIP_DEFLATED
-    ) as zf:
-
-        zf.writestr(encrypted_filename, encrypted)
-        zf.writestr(key_filename, key)
-
-    memory_file.seek(0)
-
-    # return zip download
+    # return encrypted file
     return send_file(
-        memory_file,
+        io.BytesIO(encrypted),
         as_attachment=True,
-        download_name='encrypted_files.zip',
-        mimetype='application/zip'
+        download_name=encrypted_filename
     )
 
 
@@ -65,38 +64,22 @@ def encrypt_file():
 @app.route('/decrypt', methods=['POST'])
 def decrypt_file():
 
-    uploaded_zip = request.files['file']
+    encrypted_file = request.files['file']
+    password = request.form['password']
 
-    if uploaded_zip.filename == '':
-        return "No ZIP File Selected!"
+    if encrypted_file.filename == '':
+        return "No File Selected!"
+
+    if password == '':
+        return "Password Required!"
 
     try:
 
-        # read uploaded zip in memory
-        zip_data = io.BytesIO(uploaded_zip.read())
+        # read encrypted file
+        encrypted_data = encrypted_file.read()
 
-        with zipfile.ZipFile(zip_data, 'r') as zf:
-
-            encrypted_filename = None
-            key_filename = None
-
-            # find files
-            for file in zf.namelist():
-
-                if file.endswith('.enc'):
-                    encrypted_filename = file
-
-                elif file.endswith('.key'):
-                    key_filename = file
-
-            if not encrypted_filename or not key_filename:
-                return "ZIP must contain .enc and .key files!"
-
-            # read encrypted file
-            encrypted_data = zf.read(encrypted_filename)
-
-            # read key file
-            key = zf.read(key_filename)
+        # generate key from password
+        key = generate_key(password)
 
         # create fernet object
         fernet = Fernet(key)
@@ -105,7 +88,7 @@ def decrypt_file():
         decrypted = fernet.decrypt(encrypted_data)
 
         # restore original filename
-        original_filename = encrypted_filename.replace(".enc", "")
+        original_filename = encrypted_file.filename.replace(".enc", "")
 
         # return decrypted file
         return send_file(
@@ -115,7 +98,7 @@ def decrypt_file():
         )
 
     except:
-        return "Invalid ZIP File!"
+        return "Wrong Password or Invalid File!"
 
 
 # RUN APP
