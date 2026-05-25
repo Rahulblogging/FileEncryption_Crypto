@@ -8,78 +8,122 @@
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
-    <title>Cryptography</title>
+    <title>Cryptography Vault</title>
 
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
+          rel="stylesheet">
 
 </head>
 
 <body>
 
-    <div class="container">
+    <div class="main-container">
 
-        <h2>Encrypt File</h2>
+        {% if message %}
 
-        <form action="/encrypt"
-              method="POST"
-              enctype="multipart/form-data">
+            <div id="toast"
+                class="{{ status }}">
+                {{ message }}
+            </div>
 
-            <div>
+        {% endif %}
 
-                <input type="file"
-                       name="file"
-                       required>
+        <h1 class="title">
+            Secure File Cryptography
+        </h1>
 
-                <br><br>
+        <p class="subtitle">
+            Encrypt and decrypt files securely using password protection
+        </p>
 
-                <input type="password"
-                       name="password"
-                       placeholder="Enter Password"
-                       required>
+        <div class="cards-container">
 
-                <br><br>
+            <!-- ENCRYPT CARD -->
+            <div class="card">
 
-                <button type="submit">
-                    Encrypt File
-                </button>
+                <h2>🔒 Encrypt File</h2>
+
+                <form action="/encrypt"
+                      method="POST"
+                      enctype="multipart/form-data">
+
+                    <input type="file"
+                           name="file"
+                           required>
+
+                    <input type="password"
+                           name="password"
+                           placeholder="Enter Password"
+                           required>
+
+                    <button type="submit">
+                        Encrypt File
+                    </button>
+
+                </form>
 
             </div>
 
-        </form>
+            <!-- DECRYPT CARD -->
+            <div class="card">
 
-        <hr>
+                <h2>🔓 Decrypt File</h2>
 
-        <h2>Decrypt File</h2>
+                <form action="/decrypt"
+                      method="POST"
+                      enctype="multipart/form-data">
 
-        <form action="/decrypt"
-              method="POST"
-              enctype="multipart/form-data">
+                    <input type="file"
+                           name="file"
+                           required>
 
-            <div>
+                    <input type="password"
+                           name="password"
+                           placeholder="Enter Password"
+                           required>
 
-                <input type="file"
-                       name="file"
-                       required>
+                    <button type="submit">
+                        Decrypt File
+                    </button>
 
-                <br><br>
-
-                <input type="password"
-                       name="password"
-                       placeholder="Enter Password"
-                       required>
-
-                <br><br>
-
-                <button type="submit">
-                    Decrypt File
-                </button>
+                </form>
 
             </div>
 
-        </form>
+        </div>
 
     </div>
+
+    <script>
+
+    const toast = document.getElementById("toast");
+
+    if(toast){
+
+        setTimeout(() => {
+
+            toast.style.display = "none";
+
+        }, 3000);
+
+    }
+
+    if(window.location.search){
+
+        window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+        );
+
+    }
+
+</script>
 
 </body>
 

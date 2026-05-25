@@ -1,26 +1,36 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
     <title>Success</title>
+
     <link rel="stylesheet"
           href="{{ url_for('static', filename='style.css') }}">
+
 </head>
 
 <body>
 
-    <div style="text-align: center; margin-top: 100px;">
+    <div class="success-container">
 
-        <h2>{{ message }}</h2>
+        <div class="success-card">
 
-        <br>
+            <h2>{{ message }}</h2>
 
-        <button onclick="window.location.href='/'">
-            Back to Home
-        </button>
+            <button onclick="window.location.href='/'">
+                Back to Home
+            </button>
+
+        </div>
 
     </div>
 
 </body>
-</html>
+
+</html> 

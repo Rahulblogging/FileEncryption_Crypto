@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, redirect
 from cryptography.fernet import Fernet
 import base64
 import hashlib
@@ -21,8 +21,15 @@ def generate_key(password):
 # HOME PAGE
 @app.route('/')
 def home():
-    return render_template('index.html')
 
+    message = request.args.get("message")
+    status = request.args.get("status")
+
+    return render_template(
+        'index.html',
+        message=message,
+        status=status
+    )
 
 # ENCRYPT ROUTE
 @app.route('/encrypt', methods=['POST'])
@@ -98,7 +105,7 @@ def decrypt_file():
         )
 
     except:
-        return "Wrong Password or Invalid File!"
+        return redirect('/?message=Wrong Password or Invalid File!&status=error')
 
 
 # RUN APP
