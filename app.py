@@ -1,21 +1,33 @@
 from flask import Flask, render_template, request, send_file, redirect
 from cryptography.fernet import Fernet
+
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.backends import default_backend
+
 import base64
-import hashlib
 import io
 import os
 
 app = Flask(__name__)
 
 
-# GENERATE KEY FROM PASSWORD
-def generate_key(password):
+# GENERATE KEY USING PBKDF2 + SALT
+def generate_key(password, salt):
 
-    # convert password into 32-byte key
-    key = hashlib.sha256(password.encode()).digest()
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
 
-    # convert into Fernet-compatible key
-    return base64.urlsafe_b64encode(key)
+    key = base64.urlsafe_b64encode(
+        kdf.derive(password.encode())
+    )
+
+    return key
 
 
 # HOME PAGE
@@ -31,6 +43,7 @@ def home():
         status=status
     )
 
+
 # ENCRYPT ROUTE
 @app.route('/encrypt', methods=['POST'])
 def encrypt_file():
@@ -39,31 +52,38 @@ def encrypt_file():
     password = request.form['password']
 
     if uploaded_file.filename == '':
-        return "No File Selected!"
+        return redirect('/?message=No File Selected!&status=error')
 
     if password == '':
-        return "Password Required!"
+        return redirect('/?message=Password Required!&status=error')
 
-    # read original file
+    # READ ORIGINAL FILE
     original = uploaded_file.read()
 
-    # generate key from password
-    key = generate_key(password)
+    # GENERATE RANDOM SALT
+    salt = os.urandom(16)
 
-    # create fernet object
+    # GENERATE SECURE KEY
+    key = generate_key(password, salt)
+
+    # CREATE FERNET OBJECT
     fernet = Fernet(key)
 
-    # encrypt file
+    # ENCRYPT FILE
     encrypted = fernet.encrypt(original)
 
-    # encrypted filename
-    encrypted_filename = uploaded_file.filename + ".enc"
+    # STORE SALT WITH ENCRYPTED DATA
+    encrypted = salt + encrypted
 
-    # return encrypted file
+    # ENCRYPTED FILENAME
+    encrypted_filename = uploaded_file.filename + ".secure"
+
+    # RETURN ENCRYPTED FILE
     return send_file(
         io.BytesIO(encrypted),
         as_attachment=True,
-        download_name=encrypted_filename
+        download_name=encrypted_filename,
+        mimetype='application/octet-stream'
     )
 
 
@@ -75,37 +95,47 @@ def decrypt_file():
     password = request.form['password']
 
     if encrypted_file.filename == '':
-        return "No File Selected!"
+        return redirect('/?message=No File Selected!&status=error')
 
     if password == '':
-        return "Password Required!"
+        return redirect('/?message=Password Required!&status=error')
 
     try:
 
-        # read encrypted file
+        # READ ENCRYPTED FILE
         encrypted_data = encrypted_file.read()
 
-        # generate key from password
-        key = generate_key(password)
+        # EXTRACT SALT
+        salt = encrypted_data[:16]
 
-        # create fernet object
+        # EXTRACT ENCRYPTED CONTENT
+        encrypted_content = encrypted_data[16:]
+
+        # GENERATE SAME KEY
+        key = generate_key(password, salt)
+
+        # CREATE FERNET OBJECT
         fernet = Fernet(key)
 
-        # decrypt
-        decrypted = fernet.decrypt(encrypted_data)
+        # DECRYPT
+        decrypted = fernet.decrypt(encrypted_content)
 
-        # restore original filename
-        original_filename = encrypted_file.filename.replace(".enc", "")
+        # RESTORE ORIGINAL FILENAME
+        original_filename = encrypted_file.filename.replace(".secure", "")
 
-        # return decrypted file
+        # RETURN DECRYPTED FILE
         return send_file(
             io.BytesIO(decrypted),
             as_attachment=True,
-            download_name=original_filename
+            download_name=original_filename,
+            mimetype='application/octet-stream'
         )
 
     except:
-        return redirect('/?message=Wrong Password or Invalid File!&status=error')
+
+        return redirect(
+            '/?message=Wrong Password or Invalid File!&status=error'
+        )
 
 
 # RUN APP
